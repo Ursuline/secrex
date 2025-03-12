@@ -1,0 +1,85 @@
+%YAML 1.2
+---
+debug: !!bool True
+date_format: !!str '%Y-%m-%d' # date format for the input data
+years: !!int 2 # number of years of data to extract
+moving_averages:
+  ema: !!bool True # compute exponential moving average
+  sma: !!bool True # compute simple moving average
+period: # moving average min & max (inclusive) periods
+  min: !!int 5
+  max: !!int 120
+buffer: !!float .01 # sensitivity buffer around moving average
+strategy: !!str 'long' # either of 'long' or 'short'
+# MAD
+mad:
+  compute: !!bool True # perform MAD analysis
+  long_period: 200
+  short_period: 21
+# I/O
+image_dir: !!str './_images'
+data_dir: !!str './_data'
+save_data: !!str True # Save objective function
+# PLOTS
+# objective function plot parameters
+of_plot:
+  display: !!bool True # flag to display to screen
+  save: !!bool True # Flag to save to file
+  x_axis_title: !!str 'period (days)'
+  y_axis_title: !!str 'gains'
+  font_family: !!str 'Courier New, monospace'
+  font_title:
+    size: !!int 16
+    color: !!str 'rgb(51, 160, 44)'
+  font_legend:
+    size: !!int 11
+    color: !!str 'rgb(51, 160, 44)'
+  trace: # objective function
+    color: !!str 'rgb(166, 206, 227)'
+    line_color: !!str 'rgb(31, 120, 180)'
+    line_width: !!float .25
+    opacity: !!float 1.
+  markers: # local/global maxima
+    global-color: !!str 'rgb(227, 26, 28)'
+    local-color: !!str 'rgb(31, 120, 180)'
+    size: !!int 10
+    line_width: !!float .25
+# time series plot parameters
+ts_plot:
+  display: !!bool True # flag to display to screen
+  save: !!bool True # Flag to save to file
+  range_slider: !!bool False
+  range_selector: !!bool True
+  x_axis_title: !!str ''
+  y_axis_title: !!str 'price'
+  font_family: !!str 'Helvetica, monospace'
+  font_title:
+    size: !!int 16
+    color: !!str 'rgb(102, 166, 30)'
+  font_legend:
+    size: !!int 11
+    color: !!str 'rgb(102, 166, 30)'
+  trace: # time series
+    color: !!str 'rgb(27, 158, 119)'
+    width: !!int 2
+  ema: # exponential moving average
+    color: !!str 'rgb(217, 95, 2)'
+    width: !!int 2
+  sma: # simple moving average
+    color: !!str 'rgb(117, 112, 179)'
+    width: !!int 1
+  markers: # Buy/Sell markers
+    size: !!int 10
+    line_width: !!float .25
+    buy_color: !!str 'rgb(30, 132, 73)'
+    sell_color: !!str 'rgb(176, 58, 46)'
+    buy_symbol: !!str 'arrow-down'
+    sell_symbol: !!str 'arrow-up'
+# DISPLAY
+pandas_display:
+  max_rows: null
+  max_columns: null
+  width: !!int 1000
+  max_col_width: !!int -1
+  precision: !!int 2
+  colheader_justify: !!str 'center'

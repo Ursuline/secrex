@@ -1,0 +1,7 @@
+__pycache__
+test.py
+.vscode
+.DS_Store
+*.ipynb
+_data
+_images
