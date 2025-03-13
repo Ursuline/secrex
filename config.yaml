@@ -13,7 +13,7 @@ buffer: !!float .01 # sensitivity buffer around moving average
 strategy: !!str 'long' # either of 'long' or 'short'
 # MAD
 mad:
-  compute: !!bool True # perform MAD analysis
+  compute: !!bool False # perform MAD analysis
   long_period: 200
   short_period: 21
 # I/O

@@ -48,39 +48,33 @@ class Downloader:
         self._configuration = conf
         self._request = req
         self._time_series = None
-        # Load time series data from online source
-        self._load_time_series()
-        # Load company data from online source
-        self._load_company()
-        # rename columns, compute spread, remove unused columns
+
+        # Load data, preprocess, and filter based on request
+        self._load_data()
+        self._apply_date_window(*self._request.get_dates("requested").values())
         self._preprocess()
-        # apply requested date filter
-        dates = self._request.get_dates('requested')
-        self._apply_date_window(dates['start_date'].strftime(conf.get_date_format()),
-                                dates['end_date'].strftime(conf.get_date_format()),
-                                )
-        # Remove NAs & duplicates
         self._postprocess()
-        # set actual start & end dates in Request object
         self._update_request()
 
     #--- Getter ---#
     def get_time_series(self):
-        """
-        Getter for the time series and its metadata
-        Returns:
-        - the processed time series
-        - metadata for the time series
-        """
+        """Getter for the time series and its metadata"""
         return self._time_series, self._meta
 
 
     def get_actual_date_range(self):
-        """getter for the date range of data downloaded which may not match that of the range requested"""
-        return {'actual_start_date': self._time_series.iloc[0], 'actual_end_date:': self._time_series.iloc[-1]}
+        """Getter for the actual date range of the data downloaded"""
+        return {"actual_start_date": self._time_series.index[0],
+                "actual_end_date": self._time_series.index[-1],}
 
 
-    # --- Setter ---#
+    # --- Data Loading ---#
+    def _load_data(self):
+        """Load stock and company data"""
+        self._load_time_series()
+        self._load_company()
+
+
     def _load_company(self):
         """Load fundamental company data"""
         fd = FundamentalData(key = os.getenv('ALPHAVANTAGE_API_KEY'))
@@ -120,31 +114,30 @@ class Downloader:
                                 )
 
 
-    def _update_request(self):
-        """Add the actual start and end dates to the request object"""
-        format = self._configuration.get_date_format()
-        self._request.set_actual_dates(start_date = self._time_series.index[0].date().strftime(format),
-                                       end_date = self._time_series.index[-1].date().strftime(format))
-
-
-    #--- Data engineering ---#
-    def _apply_date_window(self, start_date:str, end_date:str):
+    #--- Data processing ---#
+    def _apply_date_window(self, start_date: str, end_date: str):
         """Filter rows according to specified date window"""
-        #date_format = '%Y-%m-%d' # change this to load from yaml file
         date_format = self._configuration.get_date_format()
-        # Date format consistency check
-        try:
-            t_start = datetime.strptime(start_date, date_format)
-            t_end = datetime.strptime(end_date, date_format)
-        except ValueError as e:
-            sys_util.terminate(f'format {date_format} error with start ({start_date}) or end ({end_date}) date',
-                                e, self.__class__.__name__, sys._getframe()
-                                )
+
+        # Check if start_date and end_date are datetime objects, if so, no need to convert
+        if isinstance(start_date, datetime) and isinstance(end_date, datetime):
+            t_start = start_date
+            t_end = end_date
         else:
-            # Date window consistency check
-            assert(t_start <= t_end), f'Start date {start_date} after end date {end_date}'
-            # Apply date window to initial time series
-            self._time_series = self._time_series.sort_index().loc[start_date:end_date]
+            # Only convert to datetime if they are string
+            try:
+                t_start = datetime.strptime(start_date, date_format)
+                t_end = datetime.strptime(end_date, date_format)
+            except ValueError as e:
+                sys_util.terminate(f'Format error with start ({start_date}) or end ({end_date}) date',
+                                e, self.__class__.__name__, sys._getframe())
+
+        # Date window consistency check
+        assert t_start <= t_end, f'Start date {start_date} after end date {end_date}'
+
+        # Apply date window to initial time series
+        self._time_series = self._time_series.sort_index().loc[t_start:t_end]
+
 
 
     def _preprocess(self):
@@ -156,38 +149,36 @@ class Downloader:
         """
         try:
             # Rename columns
-            self._time_series.rename(columns={'1. open':'open',
-                                            '5. adjusted close': 'adj_close',
-                                            '6. volume': 'volume'},
-                                    inplace=True)
+            self._time_series.rename(columns={
+                '1. open':'open',
+                '5. adjusted close': 'adj_close',
+                '6. volume': 'volume',
+                }, inplace=True)
             # Compute spread
             self._time_series['spread'] = self._time_series['2. high'] - self._time_series['3. low']
             # Retain only necessary columns
             self._time_series = self._time_series[['adj_close', 'spread', 'volume']]
-        except BaseException as e:
-            sys_util.terminate('Could not preprocess raw data',
-                                e, self.__class__.__name__, sys._getframe()
-                                )
+        except Exception as e:
+            sys_util.terminate(
+                "Error during preprocessing of raw data", e, self.__class__.__name__, sys._getframe()
+                )
 
 
     def _postprocess(self):
-        """
-        Performs various post-date-window processing operations
-        - remove duplicates
-        _ remove NA columns
-        """
-        try:
-            # Drop duplicates
-            self._time_series.drop_duplicates(inplace = True)
-            # Drop all rows with null values
-            self._time_series.dropna(inplace=True)
-        except BaseException as e:
-            sys_util.terminate('Post-processing error',
-                                e, self.__class__.__name__, sys._getframe()
-                                )
+        """Post-processing: remove duplicates and null values"""
+        self._time_series.drop_duplicates(inplace = True)
+        self._time_series.dropna(inplace=True)
 
+
+    def _update_request(self):
+        """Update the request object with the actual start and end dates"""
+        date_format = self._configuration.get_date_format()
+        self._request.set_actual_dates(
+            start_date=self._time_series.index[0].date().strftime(date_format),
+            end_date=self._time_series.index[-1].date().strftime(date_format),
+        )
 
     #--- I/O ---#
     def print_time_series(self):
-        """Print the time series portion of the object"""
+        """Print the time series"""
         io_util.pretty_print(self.get_time_series())
