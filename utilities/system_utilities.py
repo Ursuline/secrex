@@ -73,17 +73,12 @@ def log_execution(log_level=logging.INFO):
         @functools.wraps(func)
         def inner(*args, **kwargs):
             # Log the function name and arguments
-            logging.log(
-                log_level,
-                f"Executing {func.__name__} with arguments {args} and keyword arguments {kwargs}",
-            )
+            logging.log(log_level, f"Executing {func.__name__} with arguments {args} and keyword arguments {kwargs}")
 
             try:
                 result = func(*args, **kwargs)
                 # Log the result of the function call
-                logging.log(
-                    log_level, f"Finished executing {func.__name__}, result: {result}"
-                )
+                logging.log(log_level, f"Finished executing {func.__name__}, result: {result}")
                 return result
             except Exception as e:
                 # Log exception if one occurs
@@ -93,6 +88,7 @@ def log_execution(log_level=logging.INFO):
         return inner
 
     return decorator
+
 
 
 def cache(func):

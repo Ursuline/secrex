@@ -14,8 +14,6 @@ can be accessed separately via getters.
 - periods tuple is min & max periodicity values for the moving averages (min, max)
 - buffer is the tolerance around the adjusted close for an event to qualify as a change.
 - T/F flags for EMA and SMA
-
-NB: Consistency checks are performed in the setters
 """
 import sys
 import utilities.system_utilities as sys_util
@@ -30,9 +28,7 @@ class Config:
 
     def __init__(self, config_filename:str):
         self._parameters = {} # dictionary of configuration variables
-        self._config = None # contents of yaml file
         self._load_configuration_file(config_filename)
-        # Constructor call
         self._load_parameters()
 
     # --- GETTERS --- #
@@ -47,10 +43,10 @@ class Config:
 
 
     def get_plot_parameters(self, plot_type:str):
-        """Returns of plot parameters as a dictionary"""
-        assert (plot_type in ['of_plot', 'ts_plot']), f'plot type {plot_type} should be "of_plot" or "ts_plot"'
+        """Return plot parameters as a dictionary"""
+        if plot_type not in ["of_plot", "ts_plot"]:
+            raise ValueError(f'plot type {plot_type} should be "of_plot" or "ts_plot"')
         return self._parameters[plot_type]
-
 
     def get_debug(self):
         """Getter for the boolean debug parameter"""
@@ -111,7 +107,7 @@ class Config:
         """Constructor"""
         try:
             self._parameters = self._config.copy()
-        except BaseException as e:
+        except Exception as e:
             sys_util.terminate('Failed to load configuration parameters', e, self.__class__.__name__, sys._getframe())
 
 
