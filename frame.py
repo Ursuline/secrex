@@ -60,15 +60,15 @@ class Frame:
         self._mad_sell_signals = None
 
         self._strategy = self._config.get_strategy()
-        # Kill it if not long
-        assert(self._strategy == 'long'), f'Only long strategy implemented | Class {self.__class__.__name__}'
-        # Call constructor
+        assert self._strategy == "long", (
+            f"Only long strategy implemented | Class {self.__class__.__name__}"
+        )
+
         self._build_derived_data()
         # Perform MAD analysis if requested
         if self._mad:
             self._build_MAD()
-        # Add scaled spread & volume columns
-        #self._engineer()
+
         self._cleanup()
 
 
@@ -183,13 +183,12 @@ class Frame:
     @time_util.timing_decorator
     def _build_derived_data(self):
         """
-        Merges exponential and simple moving average colums with raw dataframe
-        calls 5 methods:
+        Builds and joins moving averages, buffers, zones, positions, and recommendations
         1. build_moving_average MA
         2. build_buffers around MA
-        3. build_zone: determine the zone in which is located the close
-        4. build_positions determine required position in the zone
-        5. build recommendations determine recommended action to hold position
+        3. build_zone: determine the zone in which the close is located
+        4. build_positions to determine required position in the zone
+        5. build recommendations to determine recommended action to hold position
         """
 
         def _build_moving_average(col_name:str, ma_type:str, per:int):

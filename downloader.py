@@ -88,7 +88,7 @@ class Downloader:
             self._request.set_company_name(data[0]['Name'])
             self._request.set_company_exchange(data[0]['Exchange'])
             self._request.set_company_currency(data[0]['Currency'])
-            self._request.set_company_currency_symbol()
+
 
     def _load_time_series(self):
         """
@@ -137,7 +137,6 @@ class Downloader:
 
         # Apply date window to initial time series
         self._time_series = self._time_series.sort_index().loc[t_start:t_end]
-
 
 
     def _preprocess(self):
