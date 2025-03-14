@@ -128,9 +128,7 @@ class ObjectiveFunction:
         self._std_of_local_max = self._max_df["max"].std()
         self._global_max = self._max_df["max"].max()
         self._period_at_global_max = self._max_df["max"].idxmax()
-        self._max_df = self._max_df[
-            self._max_df["max"] > (self._global_max - self._std_of_local_max)
-            ]
+        self._max_df = self._max_df[self._max_df["max"] > (self._global_max - self._std_of_local_max)]
         self._n_local_max = len(self._max_df)
         self._nmax_1std = self._n_local_max
 
