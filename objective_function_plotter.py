@@ -26,22 +26,13 @@ class ObjectiveFunctionPlotter(Plotter):
         self._global = {} # global maximum marker
 
 
-    def _get_daterange(self):
-        """Return a dictionary with actual start & end dates"""
-        dates = self._req.get_dates('actual')
-        return {
-            key: date.strftime(self._config["date_format"])
-            for key, date in dates.items()
-        }
-
-
     def _extract_title_data(self):
             """Extract plot title information to build the title text"""
             # Get actual date range and convert values to string
             info = self._req.get_company_info()
             title = f'{info["name"]} '
             title += f'({self._req.get_ticker()} | {info["exchange"]})<br>'
-            title += f"{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns "
+            title += f'{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns '
             title += f'({self._get_daterange()["start_date"]} -> {self._get_daterange()["end_date"]})'
             return (
                 f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
