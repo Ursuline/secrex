@@ -21,20 +21,7 @@ class TimeSeriesPlotter(Plotter):
         super().__init__(conf=conf, req=req)
         self._data_frame = frm.get_data_frame()
         self._plot_type = 'ts_plot'
-        self._period = of.get_max_period()
-
-
-    # def _build_buffer(self, figure:go.Figure):
-    #     """Builds the buffer around the ema"""
-    #     figure.add_trace(go.Scatter(x = self._data_frame.index,
-    #                                 y = self._data_frame['adj_close'],
-    #                                 mode = 'lines',
-    #                                 name = 'adjusted close',
-    #                                 line = {'color': self._config[self._plot_type]['trace']['color'],
-    #                                         'width': self._config[self._plot_type]['trace']['width'],
-    #                                         },
-    #                                 connectgaps = True,
-    #                                 ))
+        self._period = of.get_global_max()[0]
 
 
     def _build_close(self, figure: go.Figure):

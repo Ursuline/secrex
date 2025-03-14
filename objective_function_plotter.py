@@ -41,11 +41,11 @@ class ObjectiveFunctionPlotter(Plotter):
             info = self._req.get_company_info()
             title = f'{info["name"]} '
             title += f'({self._req.get_ticker()} | {info["exchange"]})<br>'
-            title += f'{self._of.get_max_period()} days | {self._of.get_max_gains():.1%} returns '
+            title += f"{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns "
             title += f'({self._get_daterange()["start_date"]} -> {self._get_daterange()["end_date"]})'
             return (
                 f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
-                f"{self._of.get_max_period()} days | {self._of.get_max_gains():.1%} returns "
+                f"{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns "
                 f"({self._get_daterange()['start_date']} -> {self._get_daterange()['end_date']})"
             )
 
@@ -69,7 +69,6 @@ class ObjectiveFunctionPlotter(Plotter):
 
 
     def plot(self):
-
         def _build_of_trace(figure:go.Figure):
             """Builds the trace of the objective function"""
             self._extract_trace()
@@ -91,7 +90,6 @@ class ObjectiveFunctionPlotter(Plotter):
                                     opacity  = self._config[self._plot_type]['trace']['opacity'],
                                     ))
             figure.update_layout(yaxis_tickformat=".1%")
-
         #--- plot() starts here ---#
         if self._config[self._plot_type]['display'] or self._config[self._plot_type]['save']:
             try:
