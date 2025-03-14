@@ -10,6 +10,7 @@ Super class for time series (TimeSeriesPlotter) and objective function (Objectiv
 import plotly.graph_objects as go
 import config
 import request
+import utilities.system_utilities as sys_util
 
 class Plotter:
     def __init__(self, conf:config.Config, req:request.Request):
@@ -50,12 +51,21 @@ class Plotter:
 
     def _build_fileprefix(self):
         """Build prefix for image file name"""
-        prefix = f'{self._req.get_ticker()}_'
-        
-        if self._plot_type == 'of_plot':
-            prefix += f'{self._get_daterange()["start_date"]}_{self._get_daterange()["end_date"]}_of'
-        elif self._plot_type == 'ts_plot':
-            prefix += '_ts'
-        else:
-            raise ValueError(f'Could not build output file prefix {prefix}')
-        return prefix
+        date_range = self._req.get_dates('actual')  # Call from the correct object
+        return "_".join(
+            [
+                self._req.get_ticker(),
+                date_range["start_date"].strftime("%Y-%m-%d"),
+                date_range["end_date"].strftime("%Y-%m-%d"),
+                self._plot_type[:-5], #remove the "_plot" from plot_type
+            ]
+        )
+
+
+    def _get_daterange(self):
+        """Return a dictionary with actual start & end dates"""
+        dates = self._req.get_dates('actual')
+        return {
+            key: date.strftime(self._config["date_format"])
+            for key, date in dates.items()
+        }
