@@ -1,6 +1,6 @@
 %YAML 1.2
 ---
-debug: !!bool True
+debug: !!bool False
 date_format: !!str '%Y-%m-%d' # date format for the input data
 years: !!int 2 # number of years of data to extract
 moving_averages:
@@ -19,7 +19,7 @@ mad:
 # I/O
 image_dir: !!str './_images'
 data_dir: !!str './_data'
-save_data: !!str True # Save objective function
+save_data: !!bool True # Save objective function
 # PLOTS
 # objective function plot parameters
 of_plot:
