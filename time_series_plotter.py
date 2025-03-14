@@ -137,7 +137,6 @@ class TimeSeriesPlotter(Plotter):
 
 
     def plot(self):
-        """Main plotting method"""
         fig = go.Figure()
         self._build_close(fig)
         for ma_type in ['ema', 'sma']:
@@ -148,13 +147,11 @@ class TimeSeriesPlotter(Plotter):
         self._build_ancillaries(fig)
         super()._build_title(
             fig,
-            {
-                "x": self._config[self._plot_type]["x_axis_title"],
-                "y": self._config[self._plot_type]["y_axis_title"]
-                + f" ({self._req.get_company_info().get('currency-symbol', '')})",
+            {"x": self._config[self._plot_type]["x_axis_title"],
+             "y": self._config[self._plot_type]["y_axis_title"]
+                  + f" ({self._req.get_company_info().get('currency-symbol', '')})",
             },
         )
-
         # Output
         if self._config[self._plot_type]['display']:
             fig.show()
