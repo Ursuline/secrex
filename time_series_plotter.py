@@ -140,7 +140,8 @@ class TimeSeriesPlotter(Plotter):
         fig = go.Figure()
         self._build_close(fig)
         for ma_type in ['ema', 'sma']:
-            self._build_moving_average(fig, ma_type)
+            if self._config['moving_averages'][ma_type]:
+                self._build_moving_average(fig, ma_type)
 
         self._build_buffer(fig)
         self._build_tx(fig)
