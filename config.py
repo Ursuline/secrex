@@ -88,9 +88,10 @@ class Config:
         return self._parameters["mad"]["short_period"]
 
 
-    def get_buffer(self):
+    def get_buffers(self):
         """Getter for the buffer parameter"""
-        return self._parameters['buffer']
+        print(self._parameters["buffers"])
+        return self._parameters["buffers"]  # Return 'buffers' section or an empty dict if not found
 
 
     def get_strategy(self):
