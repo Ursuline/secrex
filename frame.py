@@ -51,7 +51,7 @@ class Frame:
         self._request = req
         # Set various configuration parameters as variables
         self._debug = self._config.get_debug()
-        self._buffer = self._config.get_buffer()
+        self._buffers = self._config.get_buffers()
         self._period_range = self._config.get_periods()
         self._ema = self._config.get_ema()
         self._sma = self._config.get_sma()
@@ -238,13 +238,15 @@ class Frame:
             """
             # Instantiate a dataframe with the same date indices as the original dataframe
             ts = pd.DataFrame(index = self._time_series.index)
+            if self._buffers['fixed']:
+                # Create column with added buffer
+                ts[f'{root_name}_+'] = (1 + self._buffers["buffer"]) * self._time_series[root_name]
 
-            # Create column with added buffer
-            ts[f'{root_name}_+'] = (1 + self._buffer) * self._time_series[root_name]
-
-            # Create column with subtracted buffer
-            ts[f'{root_name}_-'] = (1 - self._buffer) * self._time_series[root_name]
-            return ts
+                # Create column with subtracted buffer
+                ts[f'{root_name}_-'] = (1 - self._buffers["buffer"]) * self._time_series[root_name]
+                return ts
+            else:
+                sys_util.terminate("3D OF not implemented", None, self.__class__, sys._getframe())
 
 
         def _build_zone(period:int):
