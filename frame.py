@@ -26,6 +26,7 @@ ZONES = ['High', 'Low', 'Mid'] # close is above, below or within buffer zone
 POSITIONS = ['Long', 'Short', 'Side'] # position to take as a function of the strategy
 RECOMMENDATIONS = ['B', 'S', ''] # recommendation necessary to be in required position
 MOVING_AVGS = ['exponential', 'simple', 'both']
+INITIAL_CAPITAL = 1000 #for back-testing
 
 @time_util.timing_decorator
 class Frame:
@@ -55,18 +56,13 @@ class Frame:
         self._period_range = self._config.get_periods()
         self._ema = self._config.get_ema()
         self._sma = self._config.get_sma()
-        self._mad = self._config.get_mad()
-        self._mad_buy_signals = None
-        self._mad_sell_signals = None
 
         self._strategy = self._config.get_strategy()
-        assert self._strategy == "long", (
-            f"Only long strategy implemented | Class {self.__class__.__name__}"
-        )
+        assert self._strategy == "long", "Only long strategy implemented"
 
         self._build_derived_data()
         # Perform MAD analysis if requested
-        if self._mad:
+        if self._config.get_mad():
             self._build_MAD()
 
         self._cleanup()
@@ -101,89 +97,59 @@ class Frame:
             print(self._time_series)
 
 
-    def _build_MAD(self):
-        """Perform MAD analysis"""
+    def _build_MAD(self) -> pd.DataFrame:
+        """Perform Moving Average Distance (MAD) analysis and backtest the strategy."""
         symbol = self._request.get_ticker()
-        short_window = self._config.get_short_MAD()
-        long_window = self._config.get_long_MAD()
-        assert (
-            short_window < long_window
-        ), f"Short MAD window {short_window} >= long MAD window {long_window}"
-        # Calculate the 21-day and 200-day moving averages
-        ts = pd.DataFrame(index = self._time_series.index)
-        ts["SHORT_MAD"] = (
-            self._time_series["adj_close"].rolling(window = short_window).mean()
-        )
-        ts["LONG_MAD"] = (
-            self._time_series["adj_close"].rolling(window = long_window).mean()
-        )
-        # Calculate the Moving Average Distance (MAD)
+        short_window, long_window = self._config.get_short_MAD(), self._config.get_long_MAD()
+
+        # Calculate moving averages
+        adj_close = self._time_series["adj_close"]
+        ts = pd.DataFrame(index=self._time_series.index)
+        ts["SHORT_MAD"] = adj_close.rolling(window=short_window).mean()
+        ts["LONG_MAD"] = adj_close.rolling(window=long_window).mean()
+
+        # Calculate MAD and trading signals
         ts["MAD"] = ts["SHORT_MAD"] - ts["LONG_MAD"]
-        #Implement a basic trading strategy based on MAD
-        #Buy signal: When the 21-day MA crosses above the 200-day MA ("Golden Cross").
-        #Sell signal: When the 21-day MA crosses below the 200-day MA ("Death Cross").
-        # Create buy and sell signals
-        ts["MAD_Signal"] = np.where(ts["SHORT_MAD"] > ts["LONG_MAD"], 1, 0)
-        ts["MAD_Position"] = ts["MAD_Signal"].diff()  # 1 indicates buy, -1 indicates sell
+        ts["MAD_Signal"] = (ts["SHORT_MAD"] > ts["LONG_MAD"]).astype(int)
+        ts["MAD_Position"] = ts["MAD_Signal"].diff()
 
-        # Filter buy and sell signals
-        self._mad_buy_signals = ts[ts["MAD_Position"] == 1]
-        self._mad_sell_signals = ts[ts["MAD_Position"] == -1]
+        # Identify buy and sell signals
+        self._mad_buy_signals = ts.loc[ts["MAD_Position"] == 1]
+        self._mad_sell_signals = ts.loc[ts["MAD_Position"] == -1]
 
-
-        # backtest the strategy by calculating cumulative returns based on the buy and sell signals.
-        # Assume starting capital of $1000
-        initial_capital = 1000
-        ts["Daily_Return"] = self._time_series["adj_close"].pct_change()
+        # Backtest strategy
+        ts["Daily_Return"] = adj_close.pct_change()
         ts["Strategy_Return"] = ts["Daily_Return"] * ts["MAD_Signal"].shift(1)
 
-        # Calculate cumulative returns for strategy and buy-and-hold
-        ts["Cumulative_Strategy_Return"] = (
-            1 + ts["Strategy_Return"]
-        ).cumprod() * initial_capital
+        # Compute cumulative returns
+        ts["Cumulative_Strategy_Return"] = (1 + ts["Strategy_Return"]).cumprod() * INITIAL_CAPITAL
         ts["Cumulative_Buy_Hold_Return"] = (
             1 + ts["Daily_Return"]
-        ).cumprod() * initial_capital
+        ).cumprod() * INITIAL_CAPITAL
 
-        # Prepare traces for the strategy and buy-and-hold performance
-        strategy_trace = go.Scatter(
-            x=ts.index,
-            y=ts["Cumulative_Strategy_Return"],
-            mode="lines",
-            name="MAD Strategy",
-            line=dict(color="blue"),
-        )
+        # Plot performance
+        traces = [
+            go.Scatter(x=ts.index, y=ts[col], mode="lines", name=name, line=dict(color=color))
+            for col, name, color in [
+                ("Cumulative_Strategy_Return", "MAD Strategy", "blue"),
+                ("Cumulative_Buy_Hold_Return", "Buy and Hold", "green")
+            ]
+        ]
 
-        buy_hold_trace = go.Scatter(
-            x=ts.index,
-            y=ts["Cumulative_Buy_Hold_Return"],
-            mode="lines",
-            name="Buy and Hold",
-            line=dict(color="green"),
-        )
-
-        # Create layout
         layout = go.Layout(
             title=f"Moving Average Distance Strategy vs Buy and Hold: {symbol}",
-            xaxis_title="Date",
-            yaxis_title="Cumulative Returns",
-            legend=dict(x=0, y=1),
-            hovermode="x",
+            xaxis_title="Date", yaxis_title="Cumulative Returns",
+            legend=dict(x=0, y=1), hovermode="x"
         )
 
-        # Create the figure
-        fig = go.Figure(data=[strategy_trace, buy_hold_trace], layout=layout)
-
-        # Render the plot
-        pio.show(fig)
-
+        pio.show(go.Figure(data=traces, layout=layout))
         return ts
 
 
     @time_util.timing_decorator
     def _build_derived_data(self):
         """
-        Builds and joins moving averages, buffers, zones, positions, and recommendations
+        Builds and joins moving averages, buffers, zones, positions, and recommendations.
         1. build_moving_average MA
         2. build_buffers around MA
         3. build_zone: determine the zone in which the close is located
@@ -191,158 +157,197 @@ class Frame:
         5. build recommendations to determine recommended action to hold position
         """
 
-        def _build_moving_average(col_name:str, ma_type:str, per:int):
+        def _build_moving_average(col_name: str, ma_type: str, per: int) -> pd.DataFrame:
             """
-            Builds moving average column for a given period per
-            Input:
-                - col_name: required MA column name
-                - ma_type (str) : exponential MA / exponential or simple or both
-                                simple MA / False (change this)
-                - per (int) : MA period/span
-            """
-            # Instantiate a dataframe with the same date indices as the original dataframe
-            assert (ma_type.lower() in MOVING_AVGS), f'MA type {ma_type} not in {MOVING_AVGS}'
-            ts = pd.DataFrame(index = self._time_series.index)
-
-            if ma_type in [MOVING_AVGS[0], MOVING_AVGS[2]]: # Exponential MA
-                # Build exponential moving average column
-                ts[col_name] = self._time_series['adj_close'].ewm(span = per,
-                                                                  adjust = False).mean()
-            elif ma_type in [MOVING_AVGS[1], MOVING_AVGS[2]]: # Simple MA
-                # Build simple moving average column
-                ts[col_name] = self._time_series['adj_close'].rolling(window = per,
-                                                                      min_periods = 1).mean()
-            return ts
-
-
-        def _build_ma_differential(col_name:str, per:int):
-            """Builds EMA-SMA column
+            Builds a moving average column for a given period.
 
             Args:
-                col_name (str): output column name
-                per (int): period
+                col_name (str): Name of the moving average column to create.
+                ma_type (str): Type of moving average ('exponential', 'simple', or 'both').
+                per (int): Period or span for the moving average.
+
+            Returns:
+                pd.DataFrame: DataFrame with the moving average column added.
             """
-            ts = pd.DataFrame(index = self._time_series.index)
-            ts[col_name] = self._time_series[f'EMA_{per}'] - self._time_series[f'SMA_{per}']
+            ts = pd.DataFrame(index=self._time_series.index)
+            # Validate moving average type
+            ma_type = ma_type.lower() #??? why remove
+            # Handle Exponential Moving Average (EMA) and Simple Moving Average (SMA)
+            if ma_type in ["exponential", "both"]:
+                ts[col_name] = (self._time_series["adj_close"].ewm(span=per, adjust=False).mean())
+            if ma_type in ["simple", "both"]:
+                ts[col_name] = (self._time_series["adj_close"].rolling(window=per, min_periods=1).mean())
+
             return ts
 
 
-        def _build_buffers(root_name:str):
+        def _build_ma_differential(col_name: str, per: int) -> pd.DataFrame:
+            """Builds EMA-SMA differential column.
+
+            Args:
+                col_name (str): Output column name.
+                per (int): Period for the moving averages.
+
+            Returns:
+                pd.DataFrame: DataFrame with the EMA-SMA differential column.
             """
-            Build EMA column with buffers :
-            Root name should be EMA_period
-            Nomenclature:
-            EMA_i_+ = EMA_i + buffer
-            EMA_i_- = EMA_i - buffer
-            REM: the buffer is a %age of the adjusted_close
+            ema_col = f"EMA_{per}"
+            sma_col = f"SMA_{per}"
+            # Ensure both EMA and SMA columns exist before calculating the differential
+            if ema_col not in self._time_series or sma_col not in self._time_series:
+                raise KeyError(f"Columns '{ema_col}' or '{sma_col}' are missing.")
+            ts = pd.DataFrame(index=self._time_series.index)
+            ts[col_name] = self._time_series[ema_col] - self._time_series[sma_col]
+            return ts
+
+
+        def _build_buffers(root_name:str) -> pd.DataFrame:
+            """
+            Build EMA columns with buffers:
+            - Root name should be in the format 'EMA_period'.
+            - Nomenclature:
+                - EMA_i_+ = EMA_i + buffer
+                - EMA_i_- = EMA_i - buffer
+            REM: the buffer is a %age of the adjusted_close.
+
+            Args:
+                root_name (str): The root name for the EMA column (e.g., 'EMA_5').
+
+            Returns:
+                pd.DataFrame: DataFrame with EMA columns adjusted by the buffer.
             """
             # Instantiate a dataframe with the same date indices as the original dataframe
             ts = pd.DataFrame(index = self._time_series.index)
             if self._buffers['fixed']:
-                # Create column with added buffer
+                # Create the EMA column with the added buffer (EMA_i_+)
                 ts[f'{root_name}_+'] = (1 + self._buffers["buffer"]) * self._time_series[root_name]
-
-                # Create column with subtracted buffer
+                # Create the EMA column with the subtracted buffer (EMA_i_-)
                 ts[f'{root_name}_-'] = (1 - self._buffers["buffer"]) * self._time_series[root_name]
-                return ts
             else:
+                # Handle case where the buffer is not fixed
                 sys_util.terminate("3D OF not implemented", None, self.__class__, sys._getframe())
+            return ts
 
 
-        def _build_zone(period:int):
+        def _build_zone(period: int) -> pd.DataFrame:
             """
-            Build zone column where close is :
+            Build zone column where close is:
                 - Above buffer+ : ZONES[0] = High
                 - Beneath buffer- : ZONES[1] = Low
                 - In buffer zone: ZONES[2] = Mid
-            NB: the zone column is strategy-independent
+
+            Note: The zone column is strategy-independent and is built based on the
+                  relationship between the adjusted close and the EMA with buffer.
+
+            Args:
+                period (int): The period used for the EMA calculation.
+
+            Returns:
+                pd.DataFrame: DataFrame with the zone column.
             """
             ts = self._time_series
             rec_frame = pd.DataFrame(index = ts.index)
 
+            # Define conditions for determining the zone
             conditions = [(ts['adj_close'] >= ts[f'EMA_{period}_+']),
                           (ts['adj_close'] <= ts[f'EMA_{period}_-']),
                           ]
+            # Define corresponding zone options
             options = [ZONES[0], ZONES[1]]
+            # If neither condition is met, assign Mid zone
             rec_frame[f'Z_{period}'] = np.select(conditions, options, ZONES[2])
             return rec_frame
 
 
-        def _build_position(period:int):
+        def _build_position(period: int) -> pd.DataFrame:
             """
-            Build required position column given the zone and the strategy
-            Long position -> POSITIONS[0] = Long
-            Short position -> POSITIONS[1] = Shrt
-            Sideline -> POSITIONS[2] = Side
+            Build the required position column based on the zone and strategy.
+
+            - Long position -> POSITIONS[0] = Long
+            - Short position -> POSITIONS[1] = Shrt
+            - Sideline -> POSITIONS[2] = Side
+
+            The position is determined based on whether the close price falls within the
+            defined zone and the specified strategy ('long' or 'short').
+
+            Args:
+                period (int): The period for which the position is being calculated.
+
+            Returns:
+                pd.DataFrame: DataFrame containing the position column.
             """
             ts = self._time_series
             rec_frame = pd.DataFrame(index = ts.index)
+            # Define conditions for determining the position based on the zone
             conditions = [(ts[f'Z_{period}'] == ZONES[0]),
                           (ts[f'Z_{period}'] == ZONES[1]),
                           ]
+            # Determine position options based on the strategy
             if self._strategy == 'long':
-                options = [POSITIONS[0], POSITIONS[2]]
+                options = [POSITIONS[0], POSITIONS[2]]  # Long or Sideline
             elif self._strategy == 'short':
-                options = [POSITIONS[1], POSITIONS[2]]
+                options = [POSITIONS[1], POSITIONS[2]]  # S~hort or Sideline
             else:
-                sys_util.terminate(f'strategy {self._strategy} not implemented',
-                                   None, self.__class__, sys._getframe()
-                                   )
-
+                raise ValueError(f"Strategy {self._strategy} not implemented.")
+            # Assign position values based on the conditions and strategy
             rec_frame[f'Pos_{period}_{self._strategy}'] = np.select(conditions, options, '')
-
-            # Set first value to side (ie sitting out)
+            # Set first value to 'Sideline' (default state)
             rec_frame.iat[0, 0] = POSITIONS[2]
-
-            #Loop over rows
+            # Loop over the rows to propagate the previous row's position where needed
             for row in range(1, rec_frame.shape[0]):
                 if rec_frame.iat[row, 0] == '':
                     rec_frame.iat[row, 0] = rec_frame.iat[row - 1, 0]
             return rec_frame
 
 
-        def _build_recommendation(period:int):
+        def _build_recommendation(period: int) -> pd.DataFrame:
             """
-            Build recommendation column from position column
-            Strategy-independent
+            Build recommendation column based on the position column.
+            This is strategy-independent and provides recommendations for trading actions:
+            - Buy
+            - Sell
+            - Hold
+
+            Args:
+                period (int): The period for which the recommendation is being calculated.
+
+            Returns:
+                pd.DataFrame: DataFrame containing the recommendation column.
             """
-            ts = self._time_series
+            ts = self._time_series  # Assuming _time_series is accessible in the context
             rec_frame = pd.DataFrame(columns = [f'R_{period}_{self._strategy}'],
                                      index = ts.index
                                      )
-            #First day is Hold
-            rec_frame.iat[0, 0] = RECOMMENDATIONS[2]
+            # The first day is set to 'Hold' (no action taken)
+            rec_frame.iat[0, 0] = RECOMMENDATIONS[2]  # 'Hold' recommendation
+
+            long_pos_changes = [ # Logic for Long strategy
+                (POSITIONS[2], POSITIONS[0], RECOMMENDATIONS[0]),  # Side -> Long: Buy
+                (POSITIONS[2], POSITIONS[1], RECOMMENDATIONS[1]),  # Side -> Short: Sell
+                (POSITIONS[2], POSITIONS[2], RECOMMENDATIONS[2]),  # Side -> Side: Hold
+                (POSITIONS[1], POSITIONS[0], RECOMMENDATIONS[0]),  # Short -> Long: Buy
+                (POSITIONS[1], POSITIONS[1], RECOMMENDATIONS[2]),  # Short -> Short: Hold
+                (POSITIONS[1], POSITIONS[2], RECOMMENDATIONS[2]),  # Short -> Side: Hold
+                (POSITIONS[0], POSITIONS[0], RECOMMENDATIONS[2]),  # Long -> Long: Hold
+                (POSITIONS[0], POSITIONS[1], RECOMMENDATIONS[1]),  # Long -> Short: Sell
+                (POSITIONS[0], POSITIONS[2], RECOMMENDATIONS[1]),  # Long -> Side: Sell
+            ]
+
+            # Loop through the time series to build the recommendation
             for row in range(1, rec_frame.shape[0]):
                 previous_pos = ts.loc[ts.index[row - 1], f'Pos_{period}_{self._strategy}']
                 current_pos = ts.loc[ts.index[row], f'Pos_{period}_{self._strategy}']
 
-                if previous_pos == current_pos:
-                    # If position hasn't changed, recommend to Hold
-                    rec_frame.iat[row, 0] = RECOMMENDATIONS[2]
+                for prev, curr, rec in long_pos_changes:
+                    if previous_pos == prev and current_pos == curr:
+                        rec_frame.iat[row, 0] = rec
+                        break
                 else:
-                    # previous 'Side', current 'Long': Buy
-                    if previous_pos == POSITIONS[2] and current_pos == POSITIONS[0]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[0]
-                    # previous 'Short', current 'Long': Buy
-                    elif previous_pos == POSITIONS[1] and current_pos == POSITIONS[0]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[0]
-                    # previous 'Side', current 'Short': Buy
-                    elif previous_pos == POSITIONS[2] and current_pos == POSITIONS[1]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[1]
-                    # previous 'Short', current 'Side': Buy
-                    elif previous_pos == POSITIONS[1] and current_pos == POSITIONS[2]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[2]
-                    # previous 'Log', current 'Short': Sell
-                    elif previous_pos == POSITIONS[0] and current_pos == POSITIONS[1]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[1]
-                    # previous 'Log', current 'Side': Sell
-                    elif previous_pos == POSITIONS[0] and current_pos == POSITIONS[2]:
-                        rec_frame.iat[row, 0] = RECOMMENDATIONS[1]
-                    else:
-                        sys_util.terminate(f'Logic error row {row}', None, self.__class__, sys._getframe())
+                    raise ValueError(f"Logic error in recommendation calculation at row {row}")
 
             # Shift recommendation 1 day (recommendation for the day after close)
             rec_frame[f'R_{period}_{self._strategy}'] = rec_frame[f'R_{period}_{self._strategy}'].shift(1)
+
             return rec_frame
 
         # Loop through moving average periodicities:
@@ -356,19 +361,14 @@ class Frame:
                                                                                  ma_type = MOVING_AVGS[0],
                                                                                  per = per,
                                                                                  ))
-
                 # Build buffers around moving average and aggregate
                 self._time_series = self._time_series.join(_build_buffers(root_name = root_name))
-
                 # Aggregate the zone column to existing dataframe
                 self._time_series = self._time_series.join(_build_zone(period = per))
-
                 #Aggregate the positio column to existing dataframe
                 self._time_series = self._time_series.join(_build_position(period = per))
-
                 #Build recommendation and aggregate
                 self._time_series = self._time_series.join(_build_recommendation(period = per))
-
             if self._sma: # Simple moving average
                 col_name = f'SMA_{per}'
                 # Aggregate the simple moving average column to existing dataframe
@@ -387,38 +387,34 @@ class Frame:
         - volume scaled to close for ML
         """
         ts = self._time_series
-        # Build a scaled spread column
-        try:
-            factor = ts['adjusted_close'].median() / ts['spread'].median()
-        except ZeroDivisionError as e:
-            sys_util.terminate('median spread is zero',
-                                e, self.__class__, sys._getframe()
-                                )
-        else:
-            ts['scaled_spread'] = ts['spread'] * factor
 
-        # Build a scaled volume column
-        try:
-            factor = ts['volume'].median() / ts['adjusted_close'].median()
-            assert factor != 0, "median volume is zero"
-        except ZeroDivisionError as e:
-            sys_util.terminate('median close is zero',
-                                e, self.__class__, sys._getframe()
-                                )
-        else:
-            ts['scaled_volume'] = ts['volume'] / factor
+        def compute_scaled_feature(numerator, denominator, col_name, error_msg):
+            """Helper function to compute scaled features safely."""
+            median_num, median_den = ts[numerator].median(), ts[denominator].median()
+
+            if median_den == 0:
+                sys_util.terminate(error_msg, ValueError(f"{denominator} median is zero"), self.__class__, sys._getframe())
+
+            ts.loc[:, col_name] = ts[numerator] / median_den if "volume" in col_name else ts[numerator] * (median_den / median_num)
+        # Build a scaled spread column
+        compute_scaled_feature("spread", "adjusted_close", "scaled_spread", "median spread is zero")
+        compute_scaled_feature("volume", "adjusted_close", "scaled_volume", "median adjusted_close is zero")
 
 
     def _cleanup(self):
-        """
-        Removes unnecessary columns from dataframe
-        """
-        # remove all Z columns:
-        z_cols = [ f'Z_{per}' for per in range(self._period_range['min'], self._period_range['max'] + 1) ]
-        try:
-            self._time_series.drop(columns = z_cols, inplace = True)
-        except BaseException as e:
-            sys_util.warning(f'Could not drop columns {z_cols}', e, self.__class__.__func__, sys._getframe())
+        """Remove unnecessary 'Z_*' columns from the dataframe."""
+        z_cols = [f'Z_{per}' for per in range(self._period_range['min'], self._period_range['max'] + 1)]
+        existing_cols = set(z_cols) & set(self._time_series.columns)
+
+        if existing_cols:
+            self._time_series.drop(columns=list(existing_cols), inplace=True)
+        else:
+            sys_util.warning(
+                f"Could not drop columns {z_cols} (some or all do not exist)",
+                KeyError(z_cols),
+                self.__class__,
+                getattr(self, '_cleanup', None)
+            )
 
 
     def _reorder(self):
