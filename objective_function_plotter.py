@@ -65,22 +65,43 @@ class ObjectiveFunctionPlotter(Plotter):
             self._extract_trace()
             self._extract_local_max()
             self._extract_global_max()
-            # base colors
-            colors = [self._config[self._plot_type]['trace']['color']] * len(self._trace["period"])
-            # Local minima colors
+
+            # Merge periods from trace and local maxima
+            trace_periods = set(self._trace["period"])
+            local_periods = set(self._local["period"])
+            all_periods = sorted(trace_periods.union(local_periods))
+
+            # Initialize colors with the default trace color
+            colors = [self._config[self._plot_type]["trace"]["color"]] * len(all_periods)
+            # Create a set to track updated periods
+            updated_periods = set()
+
+            # Assign local minima colors
             for period in self._local["period"]:
-                colors[period - self._trace["period"][0]] = self._config[self._plot_type]["markers"]["local-color"]
-            # Global maximum color
-            colors[self._global["period"][0] - self._trace["period"][0]] = self._config[self._plot_type]['markers']['global-color']
-            figure.add_trace(go.Bar(x = self._trace['period'],
-                                    y = self._trace['gains'],
-                                    name = 'objective function',
-                                    marker_color = colors,
-                                    marker_line_color = self._config[self._plot_type]['trace']['line_color'],
-                                    marker_line_width = self._config[self._plot_type]['trace']['line_width'],
-                                    opacity  = self._config[self._plot_type]['trace']['opacity'],
-                                    ))
+                if period not in updated_periods:
+                    index = all_periods.index(period)
+                    colors[index] = self._config[self._plot_type]["markers"]["local-color"]
+                    updated_periods.add(period)
+
+            # Assign global maximum color
+            global_period = self._global["period"][0]  # Ensure global period is an integer
+            index = all_periods.index(global_period)  # Use the integer value of the global period
+            colors[index] = self._config[self._plot_type]['markers']['global-color']
+            updated_periods.add(global_period)
+
+            figure.add_trace(
+                go.Bar(x=all_periods,
+                       y=self._trace["gains"],
+                       name="objective function",
+                       marker_color=colors,
+                       marker_line_color=self._config[self._plot_type]["trace"]["line_color"],
+                       marker_line_width=self._config[self._plot_type]["trace"]["line_width"],
+                       opacity=self._config[self._plot_type]["trace"]["opacity"],
+                       ))
             figure.update_layout(yaxis_tickformat=".1%")
+            print("Global Period:", self._global["period"])
+            print("Trace Period:", self._trace["period"])
+
         #--- plot() starts here ---#
         if self._config[self._plot_type]['display'] or self._config[self._plot_type]['save']:
             try:
