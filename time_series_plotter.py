@@ -50,9 +50,9 @@ class TimeSeriesPlotter(Plotter):
         )
         figure.add_trace(go.Scatter(
             x = self._data_frame.index,
-            y = self._data_frame[f'{ma_type.upper()}_{self._period}'],
+            y = self._data_frame[f'{ma_type.upper()}_{int(self._period)}'],
             mode = 'lines',
-            name = f'{ma_type.upper()} ({self._period} days)',
+            name = f'{ma_type.upper()} ({int(self._period)} days)',
             line = {'color': self._config[self._plot_type][ma_type]['color'],
                     'width': self._config[self._plot_type][ma_type]['width'],
                     'dash': 'solid'
@@ -66,7 +66,7 @@ class TimeSeriesPlotter(Plotter):
         for sign, showlegend in (('+', True), ('-', False)):
             figure.add_trace(go.Scatter(
                 x=self._data_frame.index,
-                y=self._data_frame.get(f'EMA_{self._period}_{sign}', []),
+                y=self._data_frame.get(f'EMA_{int(self._period)}_{sign}', []),
                 mode='lines',
                 name='buffer' if showlegend else '',
                 line={
@@ -87,7 +87,7 @@ class TimeSeriesPlotter(Plotter):
 
     def _build_tx(self, figure:go.Figure):
         """Displays buy / sell recommendations on the trace"""
-        column = f"R_{self._period}_{self._config['strategy']}"
+        column = f"R_{int(self._period)}_{self._config['strategy']}"
         df = self._data_frame
 
         for tx in ['Buy', 'Sell']:
