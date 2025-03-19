@@ -26,7 +26,7 @@ OF_COLUMNS = ['period', 'gains']
 @time_util.timing_decorator
 class ObjectiveFunction:
     """
-    The objective function object encapsulates the relationship bw period and gains.
+    The objective function object encapsulates the relationship bw period, optionally buffer, and gains.
     """
     def __init__(self, conf:config.Config, frm:frame.Frame, req:request.Request):
         self._frame_obj = frm # Frame object
@@ -47,7 +47,6 @@ class ObjectiveFunction:
         self._build_objective_function()
         self._build_maxima()
         self._extract_max()
-
 
     #--- GETTERS ---#
     def get_objective_function(self):
@@ -70,7 +69,7 @@ class ObjectiveFunction:
 
     def get_global_max(self):
         """Return period at global max and global max as a tuple"""
-        return self._period_at_global_max, self._global_max
+        return int(self._period_at_global_max), self._global_max
 
 
     #--- CONSTRUCTORS ---#
@@ -113,24 +112,46 @@ class ObjectiveFunction:
 
 
     def _build_maxima(self):
-        """Build max column from gains column"""
+        """Build local max column from gains column, including edge cases."""
         gains_col = self._o_function["gains"].values
-        local_max = (gains_col[1:-1] >= gains_col[:-2]) & (gains_col[1:-1] >= gains_col[2:])
         maxima = np.zeros_like(gains_col, dtype=bool)
-        maxima[1:-1] = local_max
+
+        # Check internal local maxima
+        maxima[1:-1] = (gains_col[:-2] <= gains_col[1:-1]) & (gains_col[1:-1] >= gains_col[2:])
+
+        # Check edges
+        if gains_col[0] >= gains_col[1]:  # First element
+            maxima[0] = True
+        if gains_col[-1] >= gains_col[-2]:  # Last element
+            maxima[-1] = True
+
+        # Assign results
         self._o_function["max"] = np.where(maxima, gains_col, np.nan)
 
 
     def _extract_max(self):
-        """Compute maxima and standard deviations """
-        #1. Compute standard deviation of local maxima (must run prior to max)
-        self._max_df = self._o_function.dropna(subset=["max"]).copy()
-        self._std_of_local_max = self._max_df["max"].std()
-        self._global_max = self._max_df["max"].max()
-        self._period_at_global_max = self._max_df["max"].idxmax()
-        self._max_df = self._max_df[self._max_df["max"] > (self._global_max - self._std_of_local_max)]
-        self._n_local_max = len(self._max_df)
-        self._nmax_1std = self._n_local_max
+        """Extract global maximum and standard deviation of all maxima."""
+
+        # Rename the 'max' column to avoid conflict with the built-in function 'max'
+        max_df = self._o_function.dropna(subset=["max"]).copy()
+        max_df.rename(columns={"max": "max_column"}, inplace=True)
+
+        # Compute required statistics in a single operation for efficiency
+        stats = max_df["max_column"].agg(["std", "max", "idxmax"])
+
+        self._std_of_local_max, self._global_max, self._period_at_global_max = stats
+
+        # Filter local maxima within 1 standard deviation of the global max
+        self._max_df = max_df[max_df["max_column"] > self._global_max - self._std_of_local_max]
+
+        # Count the number of filtered local maxima
+        self._nmax_1std = self._n_local_max = len(self._max_df)
+
+        self._max_df = self._max_df.copy()  # Create a copy of the original DataFrame
+        # Rename the column
+        self._max_df.loc[:, "max"] = self._max_df["max_column"]
+        # Drop the old column
+        self._max_df.drop("max_column", axis=1, inplace=True)
 
 
     #--- POST-PROCESSING ---#
