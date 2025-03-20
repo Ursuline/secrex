@@ -35,11 +35,12 @@ class ObjectiveFunction:
         self._req = req
         self._strategy = self._config.get_strategy()
         self._period = self._config.get_periods()
+        self._debug = conf.get_debug()
         # Set various configuration parameters as variables
         self._o_function = None # Objective function
         self._max_df = None # Dataframe of local maxima in _o_function < 1 sdev from max
         self._global_max = None  # maximum gains
-        self._period_at_global_max = None  # period at max gain
+        self._global_max_periods = None  # periods at max gain
         self._n_local_max = None  # number of local maxima
         self._nmax_1std = None  # number of local maxima 1 standard deviation from global max (incl. global max)
         self._std_of_local_max = None  # Standard deviation of local maxima
@@ -69,7 +70,7 @@ class ObjectiveFunction:
 
     def get_global_max(self):
         """Return period at global max and global max as a tuple"""
-        return int(self._period_at_global_max), self._global_max
+        return self._global_max_periods, self._global_max
 
 
     #--- CONSTRUCTORS ---#
@@ -101,12 +102,6 @@ class ObjectiveFunction:
             )
             for per in range(self._period["min"], self._period["max"] + 1)
         ]
-        for per in range (self._period['min'], self._period['max'] + 1):
-            initial_buy = self._data_frame.loc[self._data_frame[f'R_{per}_{self._strategy}'] == 'B', 'adj_close'].iloc[0]
-            # Compute $ amounts bought and sold
-            buys, sells = _sum_tx(self._data_frame, f'R_{per}_{self._strategy}')
-            # Add a row for the current period / gains to the objective function
-            of_list.append([int(per), (sells - buys)/initial_buy])
         # Build the objective function DataFrame from the list of lists
         self._o_function = pd.DataFrame(of_list, columns = OF_COLUMNS).set_index(OF_COLUMNS[0])
 
@@ -130,28 +125,31 @@ class ObjectiveFunction:
 
 
     def _extract_max(self):
-        """Extract global maximum and standard deviation of all maxima."""
+        """Extract global maxima and statistics for local maxima, ensuring periods are stored as integers."""
 
         # Rename the 'max' column to avoid conflict with the built-in function 'max'
         max_df = self._o_function.dropna(subset=["max"]).copy()
         max_df.rename(columns={"max": "max_column"}, inplace=True)
 
-        # Compute required statistics in a single operation for efficiency
-        stats = max_df["max_column"].agg(["std", "max", "idxmax"])
+        # Compute standard deviation and global maximum value
+        self._std_of_local_max = max_df["max_column"].std()
+        self._global_max = max_df["max_column"].max()
 
-        self._std_of_local_max, self._global_max, self._period_at_global_max = stats
+        # Find all periods where gains match the global max store them as integers
+        self._global_max_periods = [int(period) for period in max_df[max_df["max_column"] == self._global_max].index]
 
-        # Filter local maxima within 1 standard deviation of the global max
-        self._max_df = max_df[max_df["max_column"] > self._global_max - self._std_of_local_max]
+        # Filter local maxima within 1 standard deviation of the global max and ensure integer indices
+        self._max_df = max_df[max_df["max_column"] > self._global_max - self._std_of_local_max].copy()
+        self._max_df.index = self._max_df.index.astype(int)  # Ensure period indices are integers
 
-        # Count the number of filtered local maxima
-        self._nmax_1std = self._n_local_max = len(self._max_df)
+        # Count the number of local maxima
+        self._n_local_max = len(max_df)
+        self._nmax_1std = len(self._max_df)
 
-        self._max_df = self._max_df.copy()  # Create a copy of the original DataFrame
-        # Rename the column
+        # Rename the column back for consistency
         self._max_df.loc[:, "max"] = self._max_df["max_column"]
-        # Drop the old column
         self._max_df.drop("max_column", axis=1, inplace=True)
+
 
 
     #--- POST-PROCESSING ---#
