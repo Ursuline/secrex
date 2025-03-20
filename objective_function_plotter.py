@@ -56,11 +56,7 @@ class ObjectiveFunctionPlotter(Plotter):
     def _extract_global_max(self):
         """Extract information to build global max marker"""
         df = self._of.get_global_max()
-        if self._debug:
-            print(f"Received global max dataframe from obj func: {df}")
         self._global = df[0]
-        if self._debug:
-            print(f"Built self._global: {self._global}")
 
 
     def plot(self):
@@ -88,15 +84,8 @@ class ObjectiveFunctionPlotter(Plotter):
                     updated_periods.add(period)
 
             # Assign global maximum color
-            global_max_periods = self._global
-            if self._debug:
-                print(f"All periods: {all_periods}")
-                print(f"Global max periods: {global_max_periods}")
-
-            for global_period in global_max_periods:
-                print(f"Processing global max {global_period}")
+            for global_period in self._global:
                 if global_period in all_periods:  # Check to prevent errors
-                    print(f"Setting color for global max {global_period}")
                     index = all_periods.index(global_period)
                     colors[index] = self._config[self._plot_type]['markers']['global-color']
                     updated_periods.add(global_period)
@@ -111,9 +100,6 @@ class ObjectiveFunctionPlotter(Plotter):
                        opacity=self._config[self._plot_type]["trace"]["opacity"],
                        ))
             figure.update_layout(yaxis_tickformat=".1%")
-            if self._debug:
-                print("Global Period:", self._global)
-                print("Trace Period:", self._trace["period"])
 
         #--- plot() starts here ---#
         if self._config[self._plot_type]['display'] or self._config[self._plot_type]['save']:
