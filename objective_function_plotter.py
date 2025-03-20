@@ -21,9 +21,9 @@ class ObjectiveFunctionPlotter(Plotter):
         super().__init__(conf=conf, req=req)
         self._of = of
         self._plot_type = 'of_plot'
+        self._debug = conf.get_debug()
         self._trace = {} # objective function trace
         self._local = {} # local maxima markers
-        self._global = {} # global maximum marker
 
 
     def _extract_title_data(self):
@@ -56,7 +56,11 @@ class ObjectiveFunctionPlotter(Plotter):
     def _extract_global_max(self):
         """Extract information to build global max marker"""
         df = self._of.get_global_max()
-        self._global = {"period": pd.Series([df[0]]), "gains": pd.Series([df[1]])}
+        if self._debug:
+            print(f"Received global max dataframe from obj func: {df}")
+        self._global = df[0]
+        if self._debug:
+            print(f"Built self._global: {self._global}")
 
 
     def plot(self):
@@ -84,10 +88,18 @@ class ObjectiveFunctionPlotter(Plotter):
                     updated_periods.add(period)
 
             # Assign global maximum color
-            global_period = self._global["period"][0]  # Ensure global period is an integer
-            index = all_periods.index(global_period)  # Use the integer value of the global period
-            colors[index] = self._config[self._plot_type]['markers']['global-color']
-            updated_periods.add(global_period)
+            global_max_periods = self._global
+            if self._debug:
+                print(f"All periods: {all_periods}")
+                print(f"Global max periods: {global_max_periods}")
+
+            for global_period in global_max_periods:
+                print(f"Processing global max {global_period}")
+                if global_period in all_periods:  # Check to prevent errors
+                    print(f"Setting color for global max {global_period}")
+                    index = all_periods.index(global_period)
+                    colors[index] = self._config[self._plot_type]['markers']['global-color']
+                    updated_periods.add(global_period)
 
             figure.add_trace(
                 go.Bar(x=all_periods,
@@ -99,8 +111,9 @@ class ObjectiveFunctionPlotter(Plotter):
                        opacity=self._config[self._plot_type]["trace"]["opacity"],
                        ))
             figure.update_layout(yaxis_tickformat=".1%")
-            print("Global Period:", self._global["period"])
-            print("Trace Period:", self._trace["period"])
+            if self._debug:
+                print("Global Period:", self._global)
+                print("Trace Period:", self._trace["period"])
 
         #--- plot() starts here ---#
         if self._config[self._plot_type]['display'] or self._config[self._plot_type]['save']:
