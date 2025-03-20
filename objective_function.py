@@ -44,7 +44,6 @@ class ObjectiveFunction:
         self._n_local_max = None  # number of local maxima
         self._nmax_1std = None  # number of local maxima 1 standard deviation from global max (incl. global max)
         self._std_of_local_max = None  # Standard deviation of local maxima
-        # Call constructors
         self._build_objective_function()
         self._build_maxima()
         self._extract_max()
@@ -107,29 +106,41 @@ class ObjectiveFunction:
 
 
     def _build_maxima(self):
-        """Build local max column from gains column, including edge cases."""
+        """Build local max column from gains column, including edge cases (including plateaus)."""
         gains_col = self._o_function["gains"].values
         maxima = np.zeros_like(gains_col, dtype=bool)
 
-        # Check internal local maxima
-        maxima[1:-1] = (gains_col[:-2] <= gains_col[1:-1]) & (gains_col[1:-1] >= gains_col[2:])
+        # Check internal local maxima, including plateaus
+        for i in range(1, len(gains_col) - 1):
+            if gains_col[i] > gains_col[i - 1] and gains_col[i] > gains_col[i + 1]:
+                maxima[i] = True
+            elif gains_col[i] == gains_col[i + 1]:  # Start of a plateau
+                j = i
+                while j < len(gains_col) - 1 and gains_col[j] == gains_col[j + 1]:
+                    j += 1
+                # If plateau is higher than neighbors, mark all values in plateau as max
+                if (i > 0 and gains_col[i] > gains_col[i - 1]) and (j < len(gains_col) - 1 and gains_col[j] > gains_col[j + 1]):
+                    maxima[i:j+1] = True
 
         # Check edges
-        if gains_col[0] >= gains_col[1]:  # First element
-            maxima[0] = True
-        if gains_col[-1] >= gains_col[-2]:  # Last element
-            maxima[-1] = True
+        if len(gains_col) > 1:
+            if gains_col[0] > gains_col[1]:  # First element
+                maxima[0] = True
+            if gains_col[-1] > gains_col[-2]:  # Last element
+                maxima[-1] = True
 
         # Assign results
         self._o_function["max"] = np.where(maxima, gains_col, np.nan)
 
 
+
     def _extract_max(self):
         """Extract global maxima and statistics for local maxima, ensuring periods are stored as integers."""
-
         # Rename the 'max' column to avoid conflict with the built-in function 'max'
         max_df = self._o_function.dropna(subset=["max"]).copy()
         max_df.rename(columns={"max": "max_column"}, inplace=True)
+        if self._debug:
+            print(f'max_df is:\n{max_df}')
 
         # Compute standard deviation and global maximum value
         self._std_of_local_max = max_df["max_column"].std()
