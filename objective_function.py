@@ -9,7 +9,6 @@ The ObjectiveFunction object relates a set of parameters (periodicity / strategy
 
 An optimal parameter is determined by exhaustive exploration but maxima are also calculated to quantify
 the uniqueness (ie: stability) of the optimal solution.
-
 """
 import sys
 import pandas as pd
@@ -49,11 +48,11 @@ class ObjectiveFunction:
         self._extract_max()
 
     #--- GETTERS ---#
-    def get_objective_function(self):
+    def get_objective_function(self) -> pd.DataFrame:
         return self._o_function
 
 
-    def get_local_maxima(self):
+    def get_local_maxima(self) -> pd.DataFrame:
         return self._max_df
 
 
@@ -68,7 +67,7 @@ class ObjectiveFunction:
 
 
     def get_global_max(self):
-        """Return period at global max and global max as a tuple"""
+        """Return periods at global max and global max as a tuple"""
         return self._global_max_periods, self._global_max
 
 
@@ -109,8 +108,7 @@ class ObjectiveFunction:
         """Build local max column from gains column, including edge cases (including plateaus)."""
         gains_col = self._o_function["gains"].values
         maxima = np.zeros_like(gains_col, dtype=bool)
-
-        # Check internal local maxima, including plateaus
+        # 1. Check internal local maxima, including plateaux
         for i in range(1, len(gains_col) - 1):
             if gains_col[i] > gains_col[i - 1] and gains_col[i] > gains_col[i + 1]:
                 maxima[i] = True
@@ -121,17 +119,14 @@ class ObjectiveFunction:
                 # If plateau is higher than neighbors, mark all values in plateau as max
                 if (i > 0 and gains_col[i] > gains_col[i - 1]) and (j < len(gains_col) - 1 and gains_col[j] > gains_col[j + 1]):
                     maxima[i:j+1] = True
-
-        # Check edges
+        # 2. Check edges
         if len(gains_col) > 1:
             if gains_col[0] > gains_col[1]:  # First element
                 maxima[0] = True
             if gains_col[-1] > gains_col[-2]:  # Last element
                 maxima[-1] = True
-
         # Assign results
         self._o_function["max"] = np.where(maxima, gains_col, np.nan)
-
 
 
     def _extract_max(self):
@@ -162,7 +157,6 @@ class ObjectiveFunction:
         self._max_df.drop("max_column", axis=1, inplace=True)
 
 
-
     #--- POST-PROCESSING ---#
     def _cleanup(self):
         """Remove max column"""
@@ -175,7 +169,10 @@ class ObjectiveFunction:
 
 
     #--- I/O ---#
-    def save_data(self, directory:str):
-        """Save data to csv file"""
+    def save_data(self, output_dir:str = None) -> None:
+        """Save data to csv file."""
+        if output_dir is None:
+            output_dir = self._config.get_config_parameters()['data_dir']
+
         prefix = f'{self._req.get_ticker()}_of'
-        io_util.dataframe_to_csv(self._o_function, self._config.get_config_parameters()['data_dir'], prefix)
+        io_util.dataframe_to_csv(self._o_function, output_dir, prefix)
