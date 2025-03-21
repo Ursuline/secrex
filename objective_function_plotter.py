@@ -6,7 +6,6 @@
 Plotter class for the objective function
 """
 import sys
-import pandas as pd
 import plotly.graph_objects as go
 import inspect
 import objective_function as obj_func
@@ -30,10 +29,6 @@ class ObjectiveFunctionPlotter(Plotter):
             """Extract plot title information to build the title text"""
             # Get actual date range and convert values to string
             info = self._req.get_company_info()
-            title = f'{info["name"]} '
-            title += f'({self._req.get_ticker()} | {info["exchange"]})<br>'
-            title += f'{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns '
-            title += f'({self._get_daterange()["start_date"]} -> {self._get_daterange()["end_date"]})'
             return (
                 f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
                 f"{self._of.get_global_max()[0]} days | {self._of.get_global_max()[1]:.1%} returns "

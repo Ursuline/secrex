@@ -21,7 +21,8 @@ class TimeSeriesPlotter(Plotter):
         super().__init__(conf=conf, req=req)
         self._data_frame = frm.get_data_frame()
         self._plot_type = 'ts_plot'
-        self._period = of.get_global_max()[0]
+        self._period = of.get_global_max()[0][0]
+        self._returns = of.get_global_max()[1] # model returns
         self._debug = conf.get_debug()
 
 
@@ -51,9 +52,9 @@ class TimeSeriesPlotter(Plotter):
         )
         figure.add_trace(go.Scatter(
             x = self._data_frame.index,
-            y = self._data_frame[f'{ma_type.upper()}_{self._period[0]}'],
+            y = self._data_frame[f'{ma_type.upper()}_{self._period}'],
             mode = 'lines',
-            name = f'{ma_type.upper()} ({self._period[0]} days)',
+            name = f'{ma_type.upper()} ({self._period} days)',
             line = {'color': self._config[self._plot_type][ma_type]['color'],
                     'width': self._config[self._plot_type][ma_type]['width'],
                     'dash': 'solid'
@@ -67,7 +68,7 @@ class TimeSeriesPlotter(Plotter):
         for sign, showlegend in (('+', True), ('-', False)):
             figure.add_trace(go.Scatter(
                 x=self._data_frame.index,
-                y=self._data_frame.get(f'EMA_{self._period[0]}_{sign}', []),
+                y=self._data_frame.get(f'EMA_{self._period}_{sign}', []),
                 mode='lines',
                 name='buffer' if showlegend else '',
                 line={
@@ -83,12 +84,21 @@ class TimeSeriesPlotter(Plotter):
     def _extract_title_data(self):
         """Extract plot title information to build the title text"""
         info = self._req.get_company_info()
-        return f'{info["name"]} ({self._req.get_ticker()} | {info["exchange"]})'
+        return (
+            f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
+            f"{self._period} days | {self._returns:.1%} model returns vs {self._passive_gains:.1%}"
+        )
+
+
+    def _extract_passive_gains(self):
+        first_row_close = self._data_frame["adj_close"].iloc[0]
+        last_row_close = self._data_frame["adj_close"].iloc[-1]
+        self._passive_gains = last_row_close / first_row_close - 1
 
 
     def _build_tx(self, figure:go.Figure):
         """Displays buy / sell recommendations on the trace"""
-        column = f"R_{self._period[0]}_{self._config['strategy']}"
+        column = f"R_{self._period}_{self._config['strategy']}"
         df = self._data_frame
 
         for tx in ['Buy', 'Sell']:
@@ -139,6 +149,7 @@ class TimeSeriesPlotter(Plotter):
 
     def plot(self):
         fig = go.Figure()
+        self._extract_passive_gains()
         self._build_close(fig)
         for ma_type in ['ema', 'sma']:
             if self._config['moving_averages'][ma_type]:
