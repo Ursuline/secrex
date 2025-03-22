@@ -99,9 +99,9 @@ class Config:
         return self._parameters['strategy']
 
 
-    def get_years(self):
-        """Getter for the number of years of data required"""
-        return self._parameters['years']
+    def get_months(self):
+        """Getter for the number of months of data required"""
+        return self._parameters['n_months']
 
 
     def _load_parameters(self):
