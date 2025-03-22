@@ -91,7 +91,7 @@ class TimeSeriesPlotter(Plotter):
 
 
     def _extract_passive_gains(self):
-        first_row_close = self._data_frame["adj_close"].iloc[0]
+        first_row_close = self._data_frame["adj_close"].iloc[1]
         last_row_close = self._data_frame["adj_close"].iloc[-1]
         self._passive_gains = last_row_close / first_row_close - 1
 
