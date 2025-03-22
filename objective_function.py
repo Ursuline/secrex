@@ -67,7 +67,7 @@ class ObjectiveFunction:
 
 
     def get_global_max(self):
-        """Return periods at global max and global max as a tuple"""
+        """Return periods at global max and global max as a tuple."""
         return self._global_max_periods, self._global_max
 
 
@@ -76,7 +76,7 @@ class ObjectiveFunction:
     def _build_objective_function(self):
         """
         Builds the objective function from the data frame and the strategy
-        So far only a long strategy is considered
+        So far only a long strategy is considered.
         """
         #--- method utility ---#
         def _sum_tx(df:pd.DataFrame, col:str):
@@ -100,9 +100,15 @@ class ObjectiveFunction:
             )
             for per in range(self._period["min"], self._period["max"] + 1)
         ]
+        if self._debug:
+            for per in range(self._period["min"], self._period["max"] + 1):
+                print(
+                    f"sum_tx period {per} : {_sum_tx(self._data_frame, f'R_{per}_{self._strategy}')}"
+                )
         # Build the objective function DataFrame from the list of lists
         self._o_function = pd.DataFrame(of_list, columns = OF_COLUMNS).set_index(OF_COLUMNS[0])
-
+        if self._debug:
+            print(f"Objective function:\n{self._o_function}")
 
     def _build_maxima(self):
         """Build local max column from gains column, including edge cases (including plateaus)."""
@@ -174,5 +180,8 @@ class ObjectiveFunction:
         if output_dir is None:
             output_dir = self._config.get_config_parameters()['data_dir']
 
-        prefix = f'{self._req.get_ticker()}_of'
+        date_range = self._req.get_dates("actual")  # Call from the correct object
+        start_date = date_range["start_date"].strftime("%Y-%m-%d")
+        end_date = date_range["end_date"].strftime("%Y-%m-%d")
+        prefix = f'{self._req.get_ticker()}_of_{start_date}-{end_date}'
         io_util.dataframe_to_csv(self._o_function, output_dir, prefix)
