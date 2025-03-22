@@ -10,7 +10,6 @@ Super class for time series (TimeSeriesPlotter) and objective function (Objectiv
 import plotly.graph_objects as go
 import config
 import request
-import utilities.system_utilities as sys_util
 
 class Plotter:
     def __init__(self, conf:config.Config, req:request.Request):
