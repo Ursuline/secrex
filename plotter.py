@@ -52,11 +52,10 @@ class Plotter:
         """Build prefix for image file name"""
         date_range = self._req.get_dates('actual')  # Call from the correct object
         return "_".join(
-            [
-                self._req.get_ticker(),
-                date_range["start_date"].strftime("%Y-%m-%d"),
-                date_range["end_date"].strftime("%Y-%m-%d"),
-                self._plot_type[:-5], #remove the "_plot" from plot_type
+            [self._req.get_ticker(),
+             self._plot_type[:-5],  # remove the "_plot" from plot_type
+             date_range["start_date"].strftime("%Y-%m-%d"),
+             date_range["end_date"].strftime("%Y-%m-%d")
             ]
         )
 
