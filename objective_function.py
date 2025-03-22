@@ -183,5 +183,5 @@ class ObjectiveFunction:
         date_range = self._req.get_dates("actual")  # Call from the correct object
         start_date = date_range["start_date"].strftime("%Y-%m-%d")
         end_date = date_range["end_date"].strftime("%Y-%m-%d")
-        prefix = f'{self._req.get_ticker()}_of_{start_date}-{end_date}'
+        prefix = f"{self._req.get_ticker()}_{start_date}-{end_date}_of"
         io_util.dataframe_to_csv(self._o_function, output_dir, prefix)
