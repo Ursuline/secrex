@@ -49,7 +49,7 @@ class Frame:
     def __init__(self, conf:config.Config, df:pd.DataFrame, req:request.Request):
         self._config = conf
         self._time_series = df
-        self._request = req
+        self._req = req
         # Set various configuration parameters as variables
         self._debug = self._config.get_debug()
         self._buffers = self._config.get_buffers()
@@ -82,7 +82,11 @@ class Frame:
     #--- I/O ---#
     def to_csv(self, data_dir:str):
         """Write dataframe to csv file"""
-        filename = f'{self._request.get_ticker()}_frame'
+        date_range = self._req.get_dates("actual")
+        start_date = date_range["start_date"].strftime("%Y-%m-%d")
+        end_date = date_range["end_date"].strftime("%Y-%m-%d")
+        filename = f"{self._req.get_ticker()}_{start_date}-{end_date}_frame"
+
         io_util.dataframe_to_csv(self._time_series, data_dir, filename)
 
 
@@ -99,7 +103,7 @@ class Frame:
 
     def _build_MAD(self) -> pd.DataFrame:
         """Perform Moving Average Distance (MAD) analysis and backtest the strategy."""
-        symbol = self._request.get_ticker()
+        symbol = self._req.get_ticker()
         short_window, long_window = self._config.get_short_MAD(), self._config.get_long_MAD()
 
         # Calculate moving averages
