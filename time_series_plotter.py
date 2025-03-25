@@ -86,7 +86,7 @@ class TimeSeriesPlotter(Plotter):
         info = self._req.get_company_info()
         return (
             f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
-            f"{self._period} days | {self._returns:.1%} model returns vs {self._passive_gains:.1%}"
+            f"EMA={self._period} days | {self._returns:.1%} model returns vs {self._passive_gains:.1%}"
         )
 
 
