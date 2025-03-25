@@ -48,7 +48,6 @@ class Downloader:
         self._configuration = conf
         self._request = req
         self._time_series = None
-
         # Load data, preprocess, and filter based on request
         self._load_data()
         self._apply_date_window(*self._request.get_dates("requested").values())
@@ -81,9 +80,10 @@ class Downloader:
         try:
             data = fd.get_company_overview(self._request.get_ticker())
         except ValueError as e:
-            sys_util.warning(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
+            sys_util.inspect_exception(e)
+            sys_util.terminate(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
                              e, self.__class__.__name__, sys._getframe())
-            # Should handle the downloading of this data through other means here
+            # call on other APIs
         else:
             self._request.set_company_name(data[0]['Name'])
             self._request.set_company_exchange(data[0]['Exchange'])
@@ -100,9 +100,12 @@ class Downloader:
                             output_format = 'pandas',
                             )
         except BaseException as e:
-            sys_util.terminate('Could not instantiate TimeSeries object from alpha vantage',
-                                e, self.__class__.__name__, sys._getframe()
-                                )
+            sys_util.terminate(
+                "Could not instantiate TimeSeries object. Check ALPHAVANTAGE_API_KEY variable in ~/.zshrc",
+                e,
+                self.__class__.__name__,
+                sys._getframe(),
+            )
         # API call to download data
         try:
             self._time_series, self._meta, *_ = ts.get_daily_adjusted(self._request.get_ticker(),
@@ -173,8 +176,8 @@ class Downloader:
         """Update the request object with the actual start and end dates"""
         date_format = self._configuration.get_date_format()
         self._request.set_actual_dates(
-            start_date=self._time_series.index[0].date().strftime(date_format),
-            end_date=self._time_series.index[-1].date().strftime(date_format),
+            start_date = self._time_series.index[0].date().strftime(date_format),
+            end_date = self._time_series.index[-1].date().strftime(date_format),
         )
 
     #--- I/O ---#
