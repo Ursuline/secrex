@@ -110,28 +110,97 @@ class ObjectiveFunction:
         if self._debug:
             print(f"Objective function:\n{self._o_function}")
 
+
     def _build_maxima(self):
-        """Build local max column from gains column, including edge cases (including plateaus)."""
+        gains_col = self._o_function["gains"].values
+        n = len(gains_col)
+        maxima = np.zeros_like(gains_col, dtype=bool)
+
+        # Handle edge cases first
+        if n > 1:
+            # First element check
+            if gains_col[0] > gains_col[1]:
+                print("Local maximum at index 0")
+                maxima[0] = True
+
+            # Last element check
+            if gains_col[-1] > gains_col[-2]:
+                print("Local maximum at last index")
+                maxima[-1] = True
+
+        # Interior single-point maxima (fully vectorized)
+        if n > 2:
+            # Create boolean mask for interior local maxima
+            interior_maxima = np.zeros(n, dtype=bool)
+            interior_maxima[1:-1] = (gains_col[1:-1] > gains_col[0:-2]) & (gains_col[1:-1] > gains_col[2:])
+
+            # Apply the mask to maxima
+            for i in np.where(interior_maxima)[0]:
+                print(f"Local maximum at index {i}: {gains_col[i]}")
+
+            maxima |= interior_maxima
+
+        # Plateau detection (partially vectorized)
+        if n > 1:
+            # Find where values are the same as the next value
+            same_as_next = np.zeros(n, dtype=bool)
+            same_as_next[:-1] = (gains_col[:-1] == gains_col[1:])
+
+            i = 0
+            while i < n - 1:
+                if same_as_next[i]:
+                    start = i
+                    # Find the end of this plateau
+                    while i < n - 1 and same_as_next[i]:
+                        i += 1
+                    end = i
+
+                    # Check if plateau is a local maximum
+                    left_edge = start == 0 or gains_col[start] > gains_col[start - 1]
+                    right_edge = end == n - 1 or gains_col[end] > gains_col[end + 1]
+
+                    if left_edge and right_edge:
+                        print(f"Plateau local maximum from index {start} to {end}")
+                        maxima[start:end+1] = True
+                i += 1
+
+        # Set the max values
+        self._o_function["max"] = np.where(maxima, gains_col, np.nan)
+
+
+    def _build_maxima_old(self):
         gains_col = self._o_function["gains"].values
         maxima = np.zeros_like(gains_col, dtype=bool)
-        # 1. Check internal local maxima, including plateaux
-        for i in range(1, len(gains_col) - 1):
-            if gains_col[i] > gains_col[i - 1] and gains_col[i] > gains_col[i + 1]:
-                maxima[i] = True
-            elif gains_col[i] == gains_col[i + 1]:  # Start of a plateau
-                j = i
-                while j < len(gains_col) - 1 and gains_col[j] == gains_col[j + 1]:
-                    j += 1
-                # If plateau is higher than neighbors, mark all values in plateau as max
-                if (i > 0 and gains_col[i] > gains_col[i - 1]) and (j < len(gains_col) - 1 and gains_col[j] > gains_col[j + 1]):
-                    maxima[i:j+1] = True
-        # 2. Check edges
+
+        i = 0
+        while i < len(gains_col) - 1:
+            # Plateau detection: check for flat sections
+            if gains_col[i] == gains_col[i + 1]:
+                start = i
+                # Walk forward while the values are equal
+                while i < len(gains_col) - 1 and gains_col[i] == gains_col[i + 1]:
+                    i += 1
+                end = i
+                # Check plateau edges for local max condition
+                if (start == 0 or gains_col[start] > gains_col[start - 1]) and (end == len(gains_col) - 1 or gains_col[end] > gains_col[end + 1]):
+                    print(f"Plateau local maximum from index {start} to {end}")
+                    maxima[start:end+1] = True
+            else:
+                # Regular local max detection
+                if i > 0 and gains_col[i] > gains_col[i - 1] and gains_col[i] > gains_col[i + 1]:
+                    print(f"Local maximum at index {i}: {gains_col[i]}")
+                    maxima[i] = True
+            i += 1
+
+        # Check edge cases explicitly for row 0 and last row
         if len(gains_col) > 1:
-            if gains_col[0] > gains_col[1]:  # First element
+            if gains_col[0] > gains_col[1]:
+                print("Local maximum at index 0")
                 maxima[0] = True
-            if gains_col[-1] > gains_col[-2]:  # Last element
+            if gains_col[-1] > gains_col[-2]:
+                print("Local maximum at last index")
                 maxima[-1] = True
-        # Assign results
+
         self._o_function["max"] = np.where(maxima, gains_col, np.nan)
 
 
