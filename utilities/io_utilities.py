@@ -39,7 +39,7 @@ def save_figure(
 
     try:
         figure.write_image(filepath)
-        print(f"[{func_name}] Figure saved as {filepath}")
+        #print(f"[{func_name}] Figure saved as {filepath}")
     except PermissionError as e:
         sys_util.warning(f"[{func_name}] Permission denied: {filepath}", e)
     except OSError as e:  # Handles filesystem-related errors
@@ -70,7 +70,7 @@ def dataframe_to_csv(dataframe:pd.DataFrame, directory:str, fileprefix:str) -> N
 
     try:
         dataframe.to_csv(filepath, sep=",", index=True, header=True)
-        print(f"[{func_name}] DataFrame saved as {filepath}")
+        #print(f"[{func_name}] DataFrame saved as {filepath}")
     except PermissionError as e:
         sys_util.warning(f"[{func_name}] Permission denied: {filepath}", e)
     except OSError as e:  # Covers file system-related errors
