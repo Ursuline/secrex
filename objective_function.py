@@ -66,6 +66,13 @@ class ObjectiveFunction:
                 }
 
 
+    def get_passive_gains(self)->list:
+        """Return gains (or losses) in the absence of a strategy as a list with [gains, starting close]"""
+        start_close = self._data_frame['adj_close'].iat[1]
+        end_close = self._data_frame["adj_close"].iat[-1]
+        return [end_close-start_close, start_close]
+
+
     def get_global_max(self):
         """Return periods at global max and global max as a tuple."""
         return self._global_max_periods, self._global_max
@@ -100,15 +107,13 @@ class ObjectiveFunction:
             )
             for per in range(self._period["min"], self._period["max"] + 1)
         ]
-        if self._debug:
-            for per in range(self._period["min"], self._period["max"] + 1):
-                print(
-                    f"sum_tx period {per} : {_sum_tx(self._data_frame, f'R_{per}_{self._strategy}')}"
-                )
+        # if self._debug:
+        #     for per in range(self._period["min"], self._period["max"] + 1):
+        #         print(
+        #             f"sum_tx period {per} : {_sum_tx(self._data_frame, f'R_{per}_{self._strategy}')}"
+        #         )
         # Build the objective function DataFrame from the list of lists
         self._o_function = pd.DataFrame(of_list, columns = OF_COLUMNS).set_index(OF_COLUMNS[0])
-        if self._debug:
-            print(f"Objective function:\n{self._o_function}")
 
 
     def _build_maxima(self):
@@ -120,12 +125,10 @@ class ObjectiveFunction:
         if n > 1:
             # First element check
             if gains_col[0] > gains_col[1]:
-                print("Local maximum at index 0")
                 maxima[0] = True
 
             # Last element check
             if gains_col[-1] > gains_col[-2]:
-                print("Local maximum at last index")
                 maxima[-1] = True
 
         # Interior single-point maxima (fully vectorized)
@@ -160,47 +163,10 @@ class ObjectiveFunction:
                     right_edge = end == n - 1 or gains_col[end] > gains_col[end + 1]
 
                     if left_edge and right_edge:
-                        print(f"Plateau local maximum from index {start} to {end}")
                         maxima[start:end+1] = True
                 i += 1
 
         # Set the max values
-        self._o_function["max"] = np.where(maxima, gains_col, np.nan)
-
-
-    def _build_maxima_old(self):
-        gains_col = self._o_function["gains"].values
-        maxima = np.zeros_like(gains_col, dtype=bool)
-
-        i = 0
-        while i < len(gains_col) - 1:
-            # Plateau detection: check for flat sections
-            if gains_col[i] == gains_col[i + 1]:
-                start = i
-                # Walk forward while the values are equal
-                while i < len(gains_col) - 1 and gains_col[i] == gains_col[i + 1]:
-                    i += 1
-                end = i
-                # Check plateau edges for local max condition
-                if (start == 0 or gains_col[start] > gains_col[start - 1]) and (end == len(gains_col) - 1 or gains_col[end] > gains_col[end + 1]):
-                    print(f"Plateau local maximum from index {start} to {end}")
-                    maxima[start:end+1] = True
-            else:
-                # Regular local max detection
-                if i > 0 and gains_col[i] > gains_col[i - 1] and gains_col[i] > gains_col[i + 1]:
-                    print(f"Local maximum at index {i}: {gains_col[i]}")
-                    maxima[i] = True
-            i += 1
-
-        # Check edge cases explicitly for row 0 and last row
-        if len(gains_col) > 1:
-            if gains_col[0] > gains_col[1]:
-                print("Local maximum at index 0")
-                maxima[0] = True
-            if gains_col[-1] > gains_col[-2]:
-                print("Local maximum at last index")
-                maxima[-1] = True
-
         self._o_function["max"] = np.where(maxima, gains_col, np.nan)
 
 
@@ -209,8 +175,6 @@ class ObjectiveFunction:
         # Rename the 'max' column to avoid conflict with the built-in function 'max'
         max_df = self._o_function.dropna(subset=["max"]).copy()
         max_df.rename(columns={"max": "max_column"}, inplace=True)
-        if self._debug:
-            print(f'max_df is:\n{max_df}')
 
         # Compute standard deviation and global maximum value
         self._std_of_local_max = max_df["max_column"].std()
