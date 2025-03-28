@@ -21,7 +21,8 @@ class TimeSeriesPlotter(Plotter):
         super().__init__(conf=conf, req=req)
         self._data_frame = frm.get_data_frame()
         self._plot_type = 'ts_plot'
-        self._period = of.get_global_max()[0][0]
+        self._of = of
+        self._period = of.get_global_max()[0][-1] #get longest period maximum
         self._returns = of.get_global_max()[1] # model returns
         self._debug = conf.get_debug()
 
@@ -83,17 +84,18 @@ class TimeSeriesPlotter(Plotter):
 
     def _extract_title_data(self):
         """Extract plot title information to build the title text"""
+        passive_gains = self._of.get_passive_gains()[0] / self._of.get_passive_gains()[1]
         info = self._req.get_company_info()
-        return (
-            f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
-            f"EMA={self._period} days | {self._returns:.1%} model returns vs {self._passive_gains:.1%}"
-        )
-
-
-    def _extract_passive_gains(self):
-        first_row_close = self._data_frame["adj_close"].iloc[1]
-        last_row_close = self._data_frame["adj_close"].iloc[-1]
-        self._passive_gains = last_row_close / first_row_close - 1
+        title = f"{info['name']} ({self._req.get_ticker()} | {info['exchange']})<br>"
+        title += f"EMA={self._period} days | {self._returns:.1%} model returns vs {passive_gains:.1%}"
+        gain = self._returns - passive_gains
+        rel_gain = gain / passive_gains
+        title += f" ({abs(rel_gain):.1%} "
+        if gain >= 0:
+             title += "gain)"
+        else:
+            title += "loss)"
+        return title
 
 
     def _build_tx(self, figure:go.Figure):
@@ -112,14 +114,15 @@ class TimeSeriesPlotter(Plotter):
                     marker={
                         "symbol": self._config[self._plot_type]["markers"][
                             f"{tx.lower()}_symbol"
-                        ],
-                        "size": self._config[self._plot_type]["markers"]["size"],
+                            ],
+                        "size": self._config[self._plot_type]["markers"]["size"
+                                                                         ],
                         "color": self._config[self._plot_type]["markers"][
                             f"{tx.lower()}_color"
-                        ],
+                            ],
                         "line_width": self._config[self._plot_type]["markers"][
                             "line_width"
-                        ],
+                            ],
                     },
                 )
             )
@@ -149,7 +152,6 @@ class TimeSeriesPlotter(Plotter):
 
     def plot(self):
         fig = go.Figure()
-        self._extract_passive_gains()
         self._build_close(fig)
         for ma_type in ['ema', 'sma']:
             if self._config['moving_averages'][ma_type]:
