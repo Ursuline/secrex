@@ -49,11 +49,15 @@ class Downloader:
         self._request = req
         self._time_series = None
         # Load data, preprocess, and filter based on request
-        self._load_data()
-        self._apply_date_window(*self._request.get_dates("requested").values())
-        self._preprocess()
-        self._postprocess()
-        self._update_request()
+        try:
+            self._load_data()
+            self._apply_date_window(*self._request.get_dates("requested").values())
+            self._preprocess()
+            self._postprocess()
+            self._update_request()
+        except Exception as e:
+            print(f"Download error: {e}")
+            raise
 
     #--- Getter ---#
     def get_time_series(self):
@@ -70,8 +74,17 @@ class Downloader:
     # --- Data Loading ---#
     def _load_data(self):
         """Load stock and company data"""
-        self._load_time_series()
-        self._load_company()
+        try:
+            self._load_time_series()
+            self._load_company()
+        except ValueError as e:
+            sys_util.warning(
+                f"Could not get fundamental data for ticker {self._request.get_ticker()}",
+                e,
+                self.__class__.__name__,
+                sys._getframe(),
+            )
+            raise
 
 
     def _load_company(self):
@@ -81,7 +94,7 @@ class Downloader:
             data = fd.get_company_overview(self._request.get_ticker())
         except ValueError as e:
             sys_util.inspect_exception(e)
-            sys_util.terminate(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
+            sys_util.warning(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
                              e, self.__class__.__name__, sys._getframe())
             # call on other APIs
         else:
@@ -112,7 +125,7 @@ class Downloader:
                                                                       outputsize = 'full'
                                                                       )
         except BaseException as e:
-            sys_util.terminate('Could not download daily adjusted TimeSeries from alpha vantage',
+            sys_util.warning('Could not download daily adjusted TimeSeries from alpha vantage',
                                 e, self.__class__.__name__, sys._getframe()
                                 )
 
