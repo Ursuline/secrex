@@ -96,6 +96,7 @@ class Downloader:
             sys_util.inspect_exception(e)
             sys_util.warning(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
                              e, self.__class__.__name__, sys._getframe())
+            raise
             # call on other APIs
         else:
             self._request.set_company_name(data[0]['Name'])
