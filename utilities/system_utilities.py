@@ -116,3 +116,36 @@ def cache(func):
 
     wrapper.cache = {}
     return wrapper
+
+
+def inspect_exception(e) -> None:
+    # Print the exception's main message
+    print("Exception Type:", type(e))
+    print("Exception Message:", str(e))
+
+    # Print all attributes of the exception
+    print("\nAttributes of the exception:")
+    for attr in dir(e):
+        if not attr.startswith("__"):  # Avoid dunder methods
+            print(f"{attr}: {getattr(e, attr)}")
+
+    # Print the traceback (if it exists)
+    print("\nTraceback (most recent call last):")
+    tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+    print(tb_str)
+
+    # Print the exception's cause (if available)
+    cause = e.__cause__
+    if cause:
+        print("\nCause of Exception:")
+        print(f"{type(cause)}: {cause}")
+        print("\nCause Attributes:")
+        for attr in dir(cause):
+            if not attr.startswith("__"):
+                print(f"{attr}: {getattr(cause, attr)}")
+
+    # Print context if the exception was chained using 'from'
+    context = e.__context__
+    if context:
+        print("\nContext of Exception (chained exceptions):")
+        print(f"{type(context)}: {context}")
