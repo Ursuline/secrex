@@ -73,13 +73,12 @@ class ObjectiveFunction:
         return [end_close-start_close, start_close]
 
 
-    def get_global_max(self):
-        """Return periods at global max and global max as a tuple."""
+    def get_global_max(self) -> tuple:
+        """Return periods at global max and global max as a tuple consisting of a list and a float."""
         return self._global_max_periods, self._global_max
 
 
     #--- CONSTRUCTORS ---#
-    @time_util.timing_decorator
     def _build_objective_function(self):
         """
         Builds the objective function from the data frame and the strategy
@@ -107,11 +106,6 @@ class ObjectiveFunction:
             )
             for per in range(self._period["min"], self._period["max"] + 1)
         ]
-        # if self._debug:
-        #     for per in range(self._period["min"], self._period["max"] + 1):
-        #         print(
-        #             f"sum_tx period {per} : {_sum_tx(self._data_frame, f'R_{per}_{self._strategy}')}"
-        #         )
         # Build the objective function DataFrame from the list of lists
         self._o_function = pd.DataFrame(of_list, columns = OF_COLUMNS).set_index(OF_COLUMNS[0])
 
@@ -138,8 +132,8 @@ class ObjectiveFunction:
             interior_maxima[1:-1] = (gains_col[1:-1] > gains_col[0:-2]) & (gains_col[1:-1] > gains_col[2:])
 
             # Apply the mask to maxima
-            for i in np.where(interior_maxima)[0]:
-                print(f"Local maximum at index {i}: {gains_col[i]}")
+            # for i in np.where(interior_maxima)[0]:
+            #     print(f"Local maximum at index {i}: {gains_col[i]}")
 
             maxima |= interior_maxima
 
