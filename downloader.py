@@ -93,7 +93,6 @@ class Downloader:
         try:
             data = fd.get_company_overview(self._request.get_ticker())
         except ValueError as e:
-            sys_util.inspect_exception(e)
             sys_util.warning(f'Could not get fundamental data for ticker {self._request.get_ticker()}',
                              e, self.__class__.__name__, sys._getframe())
             raise
@@ -129,6 +128,7 @@ class Downloader:
             sys_util.warning('Could not download daily adjusted TimeSeries from alpha vantage',
                                 e, self.__class__.__name__, sys._getframe()
                                 )
+            raise
 
 
     #--- Data processing ---#
