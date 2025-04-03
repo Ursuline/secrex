@@ -150,7 +150,6 @@ class Frame:
         return ts
 
 
-    @time_util.timing_decorator
     def _build_derived_data(self):
         """
         Builds and joins moving averages, buffers, zones, positions, and recommendations.
