@@ -25,6 +25,7 @@ class Driver():
         self._plot_of = plot_of
         self._plot_ts = plot_ts
         self._of = None
+        self._drive()
 
 
     def get_of(self):
@@ -37,7 +38,7 @@ class Driver():
         return self._of.get_global_max()
 
 
-    def drive(self) -> None:
+    def _drive(self) -> None:
         # Build the request object
         try:
             self._req = request.Request(
@@ -92,5 +93,5 @@ class Driver():
                 )
                 plot_instance.plot()
         except Exception as e:
-            print(f"error: {e}")
+            print(f" error: {e}")
             raise
