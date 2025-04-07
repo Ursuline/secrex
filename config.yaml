@@ -2,13 +2,13 @@
 ---
 debug: !!bool True
 date_format: !!str '%Y-%m-%d' # date format for the input data
-n_months: !!int 6 # number of months of data to extract
+n_months: !!int 24 # number of months of data to extract
 moving_averages:
   ema: !!bool True # compute exponential moving average
   sma: !!bool False # compute simple moving average
-period: # moving average min & max (inclusive) periods
+period: # moving average min & max (inclusive) periods in days
   min: !!int 5
-  max: !!int 120
+  max: !!int 240
 buffers:
   fixed: True # if True: 2D objective function else 3D
   buffer: !!float .01 # sensitivity buffer around moving average if fixed
@@ -81,6 +81,24 @@ ts_plot:
     sell_color: !!str 'rgb(176, 58, 46)'
     buy_symbol: !!str 'arrow-down'
     sell_symbol: !!str 'arrow-up'
+# Solution over time (stability plot)
+stab_plot:
+  display: !!bool True # flag to display to screen
+  save: !!bool True # Flag to save to file
+  range_slider: !!bool False
+  range_selector: !!bool True
+  x_axis_title: !!str ''
+  y_axis_title: !!str 'price'
+  font_family: !!str 'Helvetica, monospace'
+  font_title:
+    size: !!int 16
+    color: !!str 'rgb(102, 166, 30)'
+  font_legend:
+    size: !!int 11
+    color: !!str 'rgb(102, 166, 30)'
+  trace: # time series
+    color: !!str 'rgb(27, 158, 119)'
+    width: !!int 2
 # DISPLAY
 pandas_display:
   max_rows: null
