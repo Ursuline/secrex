@@ -38,6 +38,11 @@ class Driver():
         return self._of.get_global_max()
 
 
+    def get_passive_gains(self):
+        """Getter for the objective function passive gains"""
+        return self._of.get_passive_gains()
+
+
     def _drive(self) -> None:
         # Build the request object
         try:
