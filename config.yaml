@@ -87,16 +87,20 @@ stab_plot:
   save: !!bool True # Flag to save to file
   range_slider: !!bool False
   range_selector: !!bool True
-  x_axis_title: !!str ''
-  y_axis_title: !!str 'price'
+  plot_title: !!str 'stability analysis'
+  x_axis_title: !!str 'end date'
+  y_axis_title: !!str 'EMA period at maximum (days)'
   font_family: !!str 'Helvetica, monospace'
-  font_title:
+  title_font:
+    size: !!int 30
+    color: !!str 'rgb(102, 166, 30)'
+  axes_font:
     size: !!int 16
     color: !!str 'rgb(102, 166, 30)'
   font_legend:
     size: !!int 11
     color: !!str 'rgb(102, 166, 30)'
-  trace: # time series
+  trace: # maxima
     color: !!str 'rgb(27, 158, 119)'
     width: !!int 2
 # DISPLAY
