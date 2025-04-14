@@ -82,27 +82,36 @@ ts_plot:
     buy_symbol: !!str 'arrow-down'
     sell_symbol: !!str 'arrow-up'
 # Solution over time (stability plot)
-stab_plot:
+stability_plot:
   display: !!bool True # flag to display to screen
   save: !!bool True # Flag to save to file
-  range_slider: !!bool False
-  range_selector: !!bool True
-  plot_title: !!str 'stability analysis'
-  x_axis_title: !!str 'end date'
-  y_axis_title: !!str 'EMA period at maximum (days)'
+  plot_title: !!str 'Stability analysis'
   font_family: !!str 'Helvetica, monospace'
-  title_font:
-    size: !!int 30
+  subplot_height: !!int 500
+  plot_title_font:
+    size: !!int 40
     color: !!str 'rgb(102, 166, 30)'
-  axes_font:
-    size: !!int 16
-    color: !!str 'rgb(102, 166, 30)'
-  font_legend:
-    size: !!int 11
-    color: !!str 'rgb(102, 166, 30)'
-  trace: # maxima
-    color: !!str 'rgb(27, 158, 119)'
-    width: !!int 2
+  subplot_title_font:
+    size: !!int 24
+    color: 'rgb(30, 102, 166)'
+  subplot_axes_font:
+      size: !!int 16
+      color: !!str 'rgb(102, 166, 30)'
+  T_over_t_subplot: # Period over time subplot
+    subplot_title: !!str 'EMA Period at maximum'
+    x_axis_title: !!str 'End date'
+    y_axis_title: !!str 'EMA period at maximum (days)'
+    range_slider: !!bool False
+    range_selector: !!bool True
+    trace: # maxima
+      color: !!str 'rgb(27, 158, 119)'
+      width: !!int 2
+  histogram_subplot:
+    subplot_title: !!str 'Solution counts'
+    x_axis_title: !!str 'Period (days)'
+    y_axis_title: !!str 'Count'
+    marker_color: !!str 'rgb(31, 119, 180)'
+    marker_opacity: !!float 0.75
 # DISPLAY
 pandas_display:
   max_rows: null
